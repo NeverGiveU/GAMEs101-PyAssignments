@@ -2,5 +2,5 @@
 
 #### 1. Assignment 1
 
-![screenshot-assignment-1](.\assets\001.png)
+![screenshot-assignment-1](./assets/001.png)
 
