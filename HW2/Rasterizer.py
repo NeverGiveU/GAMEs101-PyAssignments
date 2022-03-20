@@ -12,6 +12,11 @@ class indice_buf_id(object):
         self._id = _id
 
 
+class color_buf_id(object):
+    def __init__(self, _id):
+        self._id = _id 
+
+
 COLOR = 1
 DEPTH = 2
 
@@ -22,11 +27,12 @@ class Rasterizer(object):
         self.height = height
 
         self.color_buf = np.zeros((self.height, self.width, 3), dtype=np.float32)
-        self.depth_buf = np.zeros((self.height, self.width), dtype=np.float32)
+        self.depth_buf = np.array([[-float("inf")]*self.width for _ in range(self.height)], dtype=np.float32)
         
         self.next_id = 0  
         self.vertex_buf = {}
         self.indice_buf = {}
+        self.vcolor_buf = {} # store colors for each vertex
 
         self.Mmatrix = None
         self.Vmatrix = None 
@@ -50,7 +56,7 @@ class Rasterizer(object):
     def load_indices(self, indices):
         '''
         @param
-            indices --np.array --shape=(N,1) --dtype=np.uint8
+            indices --np.array --shape=(N//3,3) --dtype=np.uint8
         @return
             i_id --indice_buf_id 
         '''
@@ -58,11 +64,23 @@ class Rasterizer(object):
         self.indice_buf[_id] = indices
         return indice_buf_id(_id)
 
+    def load_colors(self, colors):
+        '''
+        @param
+            colors --np.array --shape=(N,3) --dtype=np.float32
+        @return 
+            c_id --colors_buf_id
+        '''
+        _id = self.get_next_id()
+        self.vcolor_buf[_id] = colors 
+        return color_buf_id(_id)
+
+
     def clear(self, signal):
         if signal&COLOR == COLOR:
             self.color_buf = np.zeros((self.height, self.width, 3), dtype=np.float32)
         if signal&DEPTH == DEPTH:
-            self.depth_buf = np.zeros((self.height, self.width), dtype=np.float32)
+            self.depth_buf = np.array([[-float("inf")]*self.width for _ in range(self.height)], dtype=np.float32)
         
     
     def set_Mmatrix(self, Mmatrix):
@@ -74,7 +92,7 @@ class Rasterizer(object):
     def set_Pmatrix(self, Pmatrix):
         self.Pmatrix = Pmatrix
     
-    def rasterize(self, v_id, i_id, ptype):
+    def rasterize(self, v_id, i_id, c_id, ptype):
         '''
         @param
             v_id --type=vertex_buf_id
@@ -89,11 +107,11 @@ class Rasterizer(object):
         # 获取节点和连接索引
         vertices = self.vertex_buf[v_id._id]
         indices = self.indice_buf[i_id._id]
+        colors = self.vcolor_buf[c_id._id]
 
         self.MVPmatrix = np.dot(self.Pmatrix, np.dot(self.Vmatrix, self.Mmatrix))
-        
-        f1 = (100-0.1)/2.0
-        f2 = (100+0.1)/2.0
+        f1 = (50-0.1)/2.0
+        f2 = (50+0.1)/2.0
 
         for indice in indices:
             '''
@@ -123,11 +141,12 @@ class Rasterizer(object):
             t.set_vertex(1, primitivity[1, :3])
             t.set_vertex(2, primitivity[2, :3])
 
-            t.set_color(0, 255.0, 0.0, 0.0)
-            t.set_color(1, 0.0, 255.0, 0.0)
-            t.set_color(2, 0.0, 0.0, 255.0)
+            t.set_color(0, colors[indice[0]][0], colors[indice[0]][1], colors[indice[0]][2])
+            t.set_color(1, colors[indice[1]][0], colors[indice[1]][1], colors[indice[1]][2])
+            t.set_color(2, colors[indice[2]][0], colors[indice[2]][1], colors[indice[2]][2])
 
-            self.rasterize_wireframe(t)
+            # self.rasterize_wireframe(t)
+            self.rasterize_triangle(t)
 
     def rasterize_wireframe(self, t):
         '''
@@ -137,6 +156,137 @@ class Rasterizer(object):
         self.draw_line(t.a()[0], t.b()[0], t.get_color(t.a()[1]), t.get_color(t.b()[1]))
         self.draw_line(t.b()[0], t.c()[0], t.get_color(t.b()[1]), t.get_color(t.c()[1]))
         self.draw_line(t.c()[0], t.a()[0], t.get_color(t.c()[1]), t.get_color(t.a()[1]))
+
+    def rasterize_triangle(self, t):
+        '''
+        @param
+            t --type=Triangle
+        '''
+        (x1, y1, z1), _id1 = t.a()
+        (x2, y2, z2), _id2 = t.b()
+        (x3, y3, z3), _id3 = t.c()
+
+        x1, y1 = int(x1), int(y1)
+        x2, y2 = int(x2), int(y2)
+        x3, y3 = int(x3), int(y3)
+
+        x_min = min(x1, x2, x3)
+        x_max = max(x1, x2, x3)
+        y_min = min(y1, y2, y3)
+        y_max = max(y1, y2, y3)
+
+        vertices = np.array([[x1, y1],
+                             [x2, y2],
+                             [x3, y3]])
+        
+        """ To slow
+        for x in range(x_min, x_max+1):
+            for y in range(y_min, y_max+1):
+                f = self.inside_triangle(x, y, vertices)
+                ## 插值得到中间的 z 
+                alpha, beta, gamma = self.compute_Barycentric2D(x, y, vertices)
+                w_reciprocal = 1.0/(alpha + beta + gamma)
+                z = alpha*z1 + beta*z2 + gamma*z3
+
+                color = alpha/(alpha+beta+gamma)*t.get_color(_id1) + beta/(alpha+beta+gamma)*t.get_color(_id2) + gamma/(alpha+beta+gamma)*t.get_color(_id3)
+                z = w_reciprocal*z 
+
+                if f:
+                    if self.depth_buf[x, y] < z:
+                        self.set_pixel(x, y, color)
+                        self.depth_buf[x, y] = z 
+        """
+
+        ## 并行加速
+        ys, xs = np.mgrid[y_min:y_max:complex("{}j".format(y_max-y_min+1)), x_min:x_max:complex("{}j".format(x_max-x_min+1))]
+        alphas, betas, gammas = self.compute_Barycentric2D_parallel(xs, ys, vertices)
+        ws = 1.0/(alphas+betas+gammas)
+        zs = alphas*z1 + betas*z2 + gammas*z3
+        zs = ws*zs 
+        
+        alphas_betas_gammas = (alphas+betas+gammas)
+        alphas = (alphas/alphas_betas_gammas)[:, :, np.newaxis]
+        betas = (betas/alphas_betas_gammas)[:, :, np.newaxis]
+        gammas = (gammas/alphas_betas_gammas)[:, :, np.newaxis]
+        colors = alphas*t.get_color(_id1)[np.newaxis, np.newaxis, :] + betas*t.get_color(_id2)[np.newaxis, np.newaxis, :] + gammas*t.get_color(_id3)[np.newaxis, np.newaxis, :]
+        # a map
+        M = self.inside_triangle_parallel(xs, ys, vertices) # 获取三角形区域
+
+        # 补全
+        dt = y_min
+        db = self.height-y_max-1
+        dl = x_min 
+        dr = self.width-x_max-1
+
+        M = np.pad(M, ((dt, db), (dl, dr)), "constant", constant_values=0.)
+        colors = np.pad(colors, ((dt, db), (dl, dr), (0, 0)), "constant", constant_values=0.)
+        zs = np.pad(zs, ((dt, db), (dl, dr)), "constant", constant_values=0.)
+
+        valid_M = (zs > self.depth_buf)
+        valid_M = (M*valid_M)[:, :, np.newaxis]
+
+        self.color_buf = self.color_buf*(1-valid_M)+colors*valid_M
+        self.depth_buf = self.depth_buf*(1-valid_M[:, :, 0])+zs*valid_M[:, :, 0]
+
+
+    def compute_Barycentric2D_parallel(self, x, y, vertices):
+        '''
+        @param
+            x --np.array --shape=(H,W)
+            y --np.array --shape=(H,W)
+        '''
+        c1 = (x*(vertices[1][1]-vertices[2][1]) + (vertices[2][0]-vertices[1][0])*y + vertices[1][0]*vertices[2][1]-vertices[2][0]*vertices[1][1]) / \
+             (vertices[0][0]*(vertices[1][1]-vertices[2][1]) + (vertices[2][0]-vertices[1][0])*vertices[0][1] + vertices[1][0]*vertices[2][1] - vertices[2][0]*vertices[1][1])
+        c2 = (x*(vertices[2][1]-vertices[0][1]) + (vertices[0][0]-vertices[2][0])*y + vertices[2][0]*vertices[0][1]-vertices[0][0]*vertices[2][1]) / \
+             (vertices[1][0]*(vertices[2][1]-vertices[0][1]) + (vertices[0][0]-vertices[2][0])*vertices[1][1] + vertices[2][0]*vertices[0][1] - vertices[0][0]*vertices[2][1])
+        c3 = (x*(vertices[0][1]-vertices[1][1]) + (vertices[1][0]-vertices[0][0])*y + vertices[0][0]*vertices[1][1]-vertices[1][0]*vertices[0][1]) / \
+             (vertices[2][0]*(vertices[0][1]-vertices[1][1]) + (vertices[1][0]-vertices[0][0])*vertices[2][1] + vertices[0][0]*vertices[1][1] - vertices[1][0]*vertices[0][1])
+        return c1, c2, c3
+
+    def compute_Barycentric2D(self, x, y, vertices):
+        c1 = (x*(vertices[1][1]-vertices[2][1]) + (vertices[2][0]-vertices[1][0])*y + vertices[1][0]*vertices[2][1]-vertices[2][0]*vertices[1][1]) / \
+             (vertices[0][0]*(vertices[1][1]-vertices[2][1]) + (vertices[2][0]-vertices[1][0])*vertices[0][1] + vertices[1][0]*vertices[2][1] - vertices[2][0]*vertices[1][1])
+        c2 = (x*(vertices[2][1]-vertices[0][1]) + (vertices[0][0]-vertices[2][0])*y + vertices[2][0]*vertices[0][1]-vertices[0][0]*vertices[2][1]) / \
+             (vertices[1][0]*(vertices[2][1]-vertices[0][1]) + (vertices[0][0]-vertices[2][0])*vertices[1][1] + vertices[2][0]*vertices[0][1] - vertices[0][0]*vertices[2][1])
+        c3 = (x*(vertices[0][1]-vertices[1][1]) + (vertices[1][0]-vertices[0][0])*y + vertices[0][0]*vertices[1][1]-vertices[1][0]*vertices[0][1]) / \
+             (vertices[2][0]*(vertices[0][1]-vertices[1][1]) + (vertices[1][0]-vertices[0][0])*vertices[2][1] + vertices[0][0]*vertices[1][1] - vertices[1][0]*vertices[0][1])
+        return c1, c2, c3
+
+    def inside_triangle(self, x, y, vertices):
+        '''
+        @param
+            x, t --pixel_coordinate
+            vertices --np.array --shape=(3,2)
+        '''
+        AB_BC_CA = vertices[[1,2,0], :] - vertices
+        AD_BD_CD = np.array([[x, y]]) - vertices
+        ABxAD_BCxBD_CAxCD = AB_BC_CA*AD_BD_CD[:, ::-1]
+        ABxAD_BCxBD_CAxCD = ABxAD_BCxBD_CAxCD[:, 0] - ABxAD_BCxBD_CAxCD[:, 1]
+
+        if (ABxAD_BCxBD_CAxCD>=0).sum() == 3 or (ABxAD_BCxBD_CAxCD<=0).sum() == 3:
+            return True
+        return False
+
+    def inside_triangle_parallel(self, x, y, vertices):
+        '''
+        @param
+            x --np.array --shape=(H,W)
+            y --np.array --shape=(H,W)
+        '''
+        AB_BC_CA = vertices[[1,2,0], :] - vertices # (3,2)
+        Ds = np.concatenate((x[:, :, np.newaxis, np.newaxis], y[:, :, np.newaxis, np.newaxis]), axis=3)
+        AD_BD_CD = Ds - vertices # (H,W,3,2)
+        ABxAD_BCxBD_CAxCD = AB_BC_CA[np.newaxis, np.newaxis, :, ::-1]*AD_BD_CD
+        ABxAD_BCxBD_CAxCD = ABxAD_BCxBD_CAxCD[:, :, :, 0] - ABxAD_BCxBD_CAxCD[:, :, :, 1]
+
+        M1 = (ABxAD_BCxBD_CAxCD>=0).sum(axis=2) == 3
+        M2 = (ABxAD_BCxBD_CAxCD<=0).sum(axis=2) == 3
+        M = np.logical_or(M1, M2)
+
+        # import matplotlib.pyplot as plt 
+        # plt.imshow(M)
+        # plt.show()
+        return M
 
     def draw_line(self, vertex1, vertex2, color1=None, color2=None):
         '''

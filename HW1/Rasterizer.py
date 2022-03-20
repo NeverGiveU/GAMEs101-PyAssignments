@@ -22,7 +22,7 @@ class Rasterizer(object):
         self.height = height
 
         self.color_buf = np.zeros((self.height, self.width, 3), dtype=np.float32)
-        self.depth_buf = np.zeros((self.height, self.width), dtype=np.float32)
+        self.depth_buf = np.array([[float("inf")]*self.width for _ in range(self.height)], dtype=np.float32)
         
         self.next_id = 0  
         self.vertex_buf = {}
@@ -50,7 +50,7 @@ class Rasterizer(object):
     def load_indices(self, indices):
         '''
         @param
-            indices --np.array --shape=(N,1) --dtype=np.uint8
+            indices --np.array --shape=(N//3,3) --dtype=np.uint8
         @return
             i_id --indice_buf_id 
         '''
@@ -62,8 +62,7 @@ class Rasterizer(object):
         if signal&COLOR == COLOR:
             self.color_buf = np.zeros((self.height, self.width, 3), dtype=np.float32)
         if signal&DEPTH == DEPTH:
-            self.depth_buf = np.zeros((self.height, self.width), dtype=np.float32)
-        
+            self.depth_buf = np.array([[-float("inf")]*self.width for _ in range(self.height)], dtype=np.float32)
     
     def set_Mmatrix(self, Mmatrix):
         self.Mmatrix = Mmatrix

@@ -6,21 +6,34 @@ import argparse
 import matplotlib.pyplot as plt 
 
 
-def get_Mmatrix(angle):
+def get_Mmatrix(angle_x, angle_y, angle_z):
     '''
     @param
-        angle --float
+        angle_x, angle_y, angle_z --float
     @return
         Mmatrix --np.array --shape=(4,4)
 
     ## 用于对单个模型做变换，相当于摆 pose
     '''
-    angle = angle/180.0 * _PI
-    Mmatrix = np.array([[math.cos(angle), -math.sin(angle), 0., 0.],
-                        [math.sin(angle),  math.cos(angle), 0., 0.],
-                        [0., 0., 1., 0.],
-                        [0., 0., 0., 1.]])
-    return Mmatrix
+    angle_x = angle_x/180.0 * _PI
+    Mmatrix_X = np.array([[1., 0., 0., 0.],
+                          [0., math.cos(angle_x), -math.sin(angle_x), 0.],
+                          [0., math.sin(angle_x),  math.cos(angle_x), 0.],
+                          [0., 0., 0., 1.]])
+
+    angle_y = angle_y/180.0 * _PI
+    Mmatrix_Y = np.array([[ math.cos(angle_y), 0., math.sin(angle_y), 0.],
+                          [0., 1., 0., 0.],
+                          [-math.sin(angle_y), 0., math.cos(angle_y), 0.],
+                          [0., 0., 0., 1.]])
+
+    angle_z = angle_z/180.0 * _PI
+    Mmatrix_Z = np.array([[math.cos(angle_z), -math.sin(angle_z), 0., 0.],
+                          [math.sin(angle_z),  math.cos(angle_z), 0., 0.],
+                          [0., 0., 1., 0.],
+                          [0., 0., 0., 1.]])
+
+    return np.dot(np.dot(Mmatrix_X, Mmatrix_Y), Mmatrix_Z)
 
 def get_Vmatrix(camera_pos):
     '''
@@ -77,11 +90,26 @@ def get_Pmatrix(eye_fov_angle, # 👀 的视角范围
 
 def on_key_press(event):
     key = event.key
+    ## 翻转
     if key == "a":
-        args.angle -= 5 
+        args.angle_z -= 5 
         plt.close()
     elif key == "d":
-        args.angle += 5
+        args.angle_z += 5
+        plt.close()
+    ## 俯仰
+    elif key == "up":
+        args.angle_x += 5
+        plt.close()
+    elif key == "down":
+        args.angle_x -= 5
+        plt.close()
+    ## 摇摆
+    elif key == "left":
+        args.angle_y += 5
+        plt.close()
+    elif key == "right":
+        args.angle_y -= 5
         plt.close()
     elif key == "enter":
         args.quit = True
@@ -89,7 +117,9 @@ def on_key_press(event):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HW1 CMD.")
-    parser.add_argument("--angle", type=float, default=0.0)
+    parser.add_argument("--angle_x", type=float, default=0.0)
+    parser.add_argument("--angle_y", type=float, default=0.0)
+    parser.add_argument("--angle_z", type=float, default=0.0)
     parser.add_argument("--screenshot", type=str, default="screenshot.png")
 
     args = parser.parse_args()
@@ -100,9 +130,20 @@ if __name__ == "__main__":
     _camera_pos = np.array([0, 0, 5])                  # the camera position
     vertices = np.array([[2., 0., -2.],
                          [0., 2., -2.],
-                         [-2., 0., -2.]])              # vertices of the triangle
-    indices = np.array([[0, 1, 2]], dtype=np.uint8)    # indices, each 3d-tuple represents a triangle primitivity
-    
+                         [-2., 0., -2.], # primitivity 1
+                         [3.5, -1., -5.],
+                         [2.5, 1.5, -5.],
+                         [-1., 0.5, -5.] # primitivity 2
+                         ])                            # vertices of the triangle
+    indices = np.array([[0, 1, 2],
+                        [3, 4, 5]], dtype=np.uint8)    # indices, each 3d-tuple represents a triangle primitivity
+    colors = np.array([[217., 238., 185.],
+                       [217., 238., 185.],
+                       [217., 238., 185.],
+                       [185., 217., 238.],
+                       [185., 217., 238.],
+                       [185., 217., 238.]], dtype=np.float32)
+
     key = 0
     frame_count = 0                                    # 帧计数器
     
@@ -110,15 +151,16 @@ if __name__ == "__main__":
     rasterizer = Rasterizer.Rasterizer(512+256, 512+256) # 渲染器/屏幕
     v_id = rasterizer.load_vertices(vertices)
     i_id = rasterizer.load_indices(indices)
+    c_id = rasterizer.load_colors(colors)
 
     #### 画图
     while True:
         rasterizer.clear(Rasterizer.COLOR|Rasterizer.DEPTH) # 重置帧缓存和深度缓存
-        rasterizer.set_Mmatrix(get_Mmatrix(args.angle))
+        rasterizer.set_Mmatrix(get_Mmatrix(args.angle_x, args.angle_y, args.angle_z))
         rasterizer.set_Vmatrix(get_Vmatrix(_camera_pos))
         rasterizer.set_Pmatrix(get_Pmatrix(45, 1, 0.1, 50))
 
-        rasterizer.rasterize(v_id, i_id, ptype="Triangle")
+        rasterizer.rasterize(v_id, i_id, c_id, ptype="Triangle")
         screenshot = rasterizer.get_screenshot()
 
         fig, ax = plt.subplots()
