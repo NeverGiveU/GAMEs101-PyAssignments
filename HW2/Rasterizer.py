@@ -212,12 +212,22 @@ class Rasterizer(object):
         # a map
         M = self.inside_triangle_parallel(xs, ys, vertices) # 获取三角形区域
 
-        # 补全
-        dt = y_min
-        db = self.height-y_max-1
-        dl = x_min 
-        dr = self.width-x_max-1
+        # 先计算要裁减掉的区域
+        ct = max(-y_min, 0)
+        cd = max(y_max-(self.height-1), 0)
+        cl = max(-x_min, 0)
+        cr = max(x_max-(self.width-1), 0)
 
+        M = M[ct:M.shape[0]-cd, cl:M.shape[1]-cr]
+        colors = colors[ct:colors.shape[0]-cd, cl:colors.shape[1]-cr, :]
+        zs = zs[ct:zs.shape[0]-cd, cl:zs.shape[1]-cr]
+
+        # 补全 
+        dt = max(0, y_min)
+        db = max(self.height-y_max-1, 0)
+        dl = max(0, x_min) 
+        dr = max(self.width-x_max-1, 0)
+        
         M = np.pad(M, ((dt, db), (dl, dr)), "constant", constant_values=0.)
         colors = np.pad(colors, ((dt, db), (dl, dr), (0, 0)), "constant", constant_values=0.)
         zs = np.pad(zs, ((dt, db), (dl, dr)), "constant", constant_values=0.)
