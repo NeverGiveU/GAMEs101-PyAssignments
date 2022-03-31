@@ -1,5 +1,6 @@
 import numpy as np  
 import Triangle
+import random
 
 
 class vertex_buf_id(object):
@@ -159,14 +160,14 @@ class Rasterizer(object):
         self.draw_line(t.b()[0], t.c()[0], t.get_color(t.b()[1]), t.get_color(t.c()[1]))
         self.draw_line(t.c()[0], t.a()[0], t.get_color(t.c()[1]), t.get_color(t.a()[1]))
 
-    def rasterize_triangle(self, t):
+    def rasterize_triangle(self, t, viewspace_pos):
         '''
         @param
             t --type=Triangle
         '''
-        (x1, y1, z1), _id1 = t.a()
-        (x2, y2, z2), _id2 = t.b()
-        (x3, y3, z3), _id3 = t.c()
+        (x1, y1, z1, w1), _id1 = t.a()
+        (x2, y2, z2, w2), _id2 = t.b()
+        (x3, y3, z3, w3), _id3 = t.c()
 
         x1, y1 = int(x1), int(y1)
         x2, y2 = int(x2), int(y2)
@@ -176,6 +177,10 @@ class Rasterizer(object):
         x_max = max(x1, x2, x3)
         y_min = min(y1, y2, y3)
         y_max = max(y1, y2, y3)
+
+        if x_max <= 0 or y_max <= 0 or x_min >= self.width or y_min >= self.height:
+            return 
+
 
         vertices = np.array([[x1, y1],
                              [x2, y2],
@@ -202,11 +207,11 @@ class Rasterizer(object):
         ## 并行加速
         ys, xs = np.mgrid[y_min:y_max:complex("{}j".format(y_max-y_min+1)), x_min:x_max:complex("{}j".format(x_max-x_min+1))]
         alphas, betas, gammas = self.compute_Barycentric2D_parallel(xs, ys, vertices)
-        ws = 1.0/(alphas+betas+gammas)
+        ws = 1.0/(alphas+betas+gammas+1e-6)
         zs = alphas*z1 + betas*z2 + gammas*z3
         zs = ws*zs 
         
-        alphas_betas_gammas = (alphas+betas+gammas)
+        alphas_betas_gammas = (alphas+betas+gammas)+1e-6
         alphas = (alphas/alphas_betas_gammas)[:, :, np.newaxis]
         betas = (betas/alphas_betas_gammas)[:, :, np.newaxis]
         gammas = (gammas/alphas_betas_gammas)[:, :, np.newaxis]
@@ -229,17 +234,19 @@ class Rasterizer(object):
         db = max(self.height-y_max-1, 0)
         dl = max(0, x_min) 
         dr = max(self.width-x_max-1, 0)
-        
+        # print(zs.shape)
         M = np.pad(M, ((dt, db), (dl, dr)), "constant", constant_values=0.)
         colors = np.pad(colors, ((dt, db), (dl, dr), (0, 0)), "constant", constant_values=0.)
         zs = np.pad(zs, ((dt, db), (dl, dr)), "constant", constant_values=0.)
 
         valid_M = (zs < self.depth_buf)
-        valid_M = (M*valid_M)[:, :, np.newaxis]
+        valid_M = ((M*valid_M)[:, :, np.newaxis]).astype(np.float32)
+        # import matplotlib.pyplot as plt 
+        # plt.imshow(valid_M[:, :, 0])
+        # plt.show()
 
         self.color_buf = self.color_buf*(1-valid_M)+colors*valid_M
         self.depth_buf = self.depth_buf*(1-valid_M[:, :, 0])+zs*valid_M[:, :, 0]
-
 
     def compute_Barycentric2D_parallel(self, x, y, vertices):
         '''
@@ -248,11 +255,11 @@ class Rasterizer(object):
             y --np.array --shape=(H,W)
         '''
         c1 = (x*(vertices[1][1]-vertices[2][1]) + (vertices[2][0]-vertices[1][0])*y + vertices[1][0]*vertices[2][1]-vertices[2][0]*vertices[1][1]) / \
-             (vertices[0][0]*(vertices[1][1]-vertices[2][1]) + (vertices[2][0]-vertices[1][0])*vertices[0][1] + vertices[1][0]*vertices[2][1] - vertices[2][0]*vertices[1][1])
+             (vertices[0][0]*(vertices[1][1]-vertices[2][1]) + (vertices[2][0]-vertices[1][0])*vertices[0][1] + vertices[1][0]*vertices[2][1] - vertices[2][0]*vertices[1][1] + 1e-6)
         c2 = (x*(vertices[2][1]-vertices[0][1]) + (vertices[0][0]-vertices[2][0])*y + vertices[2][0]*vertices[0][1]-vertices[0][0]*vertices[2][1]) / \
-             (vertices[1][0]*(vertices[2][1]-vertices[0][1]) + (vertices[0][0]-vertices[2][0])*vertices[1][1] + vertices[2][0]*vertices[0][1] - vertices[0][0]*vertices[2][1])
+             (vertices[1][0]*(vertices[2][1]-vertices[0][1]) + (vertices[0][0]-vertices[2][0])*vertices[1][1] + vertices[2][0]*vertices[0][1] - vertices[0][0]*vertices[2][1] + 1e-6)
         c3 = (x*(vertices[0][1]-vertices[1][1]) + (vertices[1][0]-vertices[0][0])*y + vertices[0][0]*vertices[1][1]-vertices[1][0]*vertices[0][1]) / \
-             (vertices[2][0]*(vertices[0][1]-vertices[1][1]) + (vertices[1][0]-vertices[0][0])*vertices[2][1] + vertices[0][0]*vertices[1][1] - vertices[1][0]*vertices[0][1])
+             (vertices[2][0]*(vertices[0][1]-vertices[1][1]) + (vertices[1][0]-vertices[0][0])*vertices[2][1] + vertices[0][0]*vertices[1][1] - vertices[1][0]*vertices[0][1] + 1e-6)
         return c1, c2, c3
 
     def compute_Barycentric2D(self, x, y, vertices):
@@ -415,3 +422,51 @@ class Rasterizer(object):
     
     def get_screenshot(self):
         return self.color_buf.astype(np.uint8)
+
+    def render(self, triangles):
+        self.MVPmatrix = np.dot(self.Pmatrix, np.dot(self.Vmatrix, self.Mmatrix))
+        f1 = (50-0.1)/2.0
+        f2 = (50+0.1)/2.0
+
+        for triangle in triangles:
+            vertices = np.array(triangle.vertices)
+
+            mm = np.dot(self.Vmatrix, np.dot(self.Mmatrix, vertices.T)).T # (3,4)
+            viewspace_pos = mm[:, :3]                                     # (3,3)
+            
+            # 坐标变换
+            vertices = np.dot(self.MVPmatrix, vertices.T).T               # (3,4)
+            # 归一化齐次坐标
+            vertices = vertices / vertices[:, 3:4]
+            
+            inv_MVmatrix = np.linalg.inv(np.dot(self.Vmatrix, self.Mmatrix)).T
+
+            normals = np.dot(inv_MVmatrix, 
+                np.concatenate([np.array(triangle.normals), np.ones((3,1), dtype=np.float32)], axis=1).T
+            ).T
+
+            ## Viewport transformation# 视口变换: 投影到屏幕
+            vertices[:, 0:1] = 0.5*self.width*(vertices[:, 0:1]+1.0)  # [-1, 1] -> [0, width]
+            vertices[:, 1:2] = 0.5*self.height*(vertices[:, 1:2]+1.0) # [-1, 1] -> [0, height]
+            # 至于 z, 在本题中随便都可以?
+            vertices[:, 2:3] = vertices[:, 2:3]*f1+f2 
+
+            triangle_cached = Triangle.Triangle()
+            r, g, b = random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)
+            for _id in range(3):
+                triangle_cached.set_vertex(_id, vertices[_id])
+                triangle_cached.set_normal(_id, normals[_id])
+                triangle_cached.set_color(_id, r, g, b)
+
+            self.rasterize_triangle(triangle_cached, viewspace_pos)
+
+
+
+
+
+            # break
+
+
+
+
+
