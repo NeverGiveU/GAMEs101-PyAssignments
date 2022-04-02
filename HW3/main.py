@@ -142,7 +142,7 @@ def xyz2xyzw(vertex):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HW1 CMD.")
     parser.add_argument("--angle_x", type=float, default=0.0)
-    parser.add_argument("--angle_y", type=float, default=140.0)
+    parser.add_argument("--angle_y", type=float, default=0.0)
     parser.add_argument("--angle_z", type=float, default=0.0)
     parser.add_argument("--screenshot", type=str, default="screenshot.png")
     parser.add_argument("--obj_path", type=str, default="./models/spot/spot/spot_triangulated_good.obj")

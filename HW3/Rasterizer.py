@@ -45,7 +45,7 @@ class Rasterizer(object):
         self.Pmatrix = None
 
         self.texture = None  # type=Texture
-        self.shader_type = "texture"#"normal"#
+        self.shader_type = "displacement"#"bump"#"phong"#"texture"#"normal"#
         self.obj_path = ""
 
     def get_next_id(self):
@@ -460,7 +460,6 @@ class Rasterizer(object):
         return self.color_buf.astype(np.uint8)
 
     def render(self, triangles):
-        # print("Rasterizing using the normal shader..")
         self.MVPmatrix = np.dot(self.Pmatrix, np.dot(self.Vmatrix, self.Mmatrix))
         # print("MVP matrix:")
         # print(self.MVPmatrix)
@@ -530,3 +529,11 @@ class Rasterizer(object):
             self.set_texture_path(self.obj_path.replace(os.path.basename(self.obj_path), "texture.png"))
             payload.texture = self.texture
             return texture_fragment_shader(payload)
+        elif self.shader_type == "phong":
+            return phong_fragment_shader(payload)
+        elif self.shader_type == "bump":
+            return bump_fragment_shader(payload)
+        elif self.shader_type == "displacement":
+            return displacement_fragment_shader(payload)
+        else:
+            return
