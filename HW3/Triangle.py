@@ -36,3 +36,4 @@ class Triangle(object):
     def get_color(self, ind):
         if 0 <= ind < len(self.colors):
             return self.colors[ind]
+

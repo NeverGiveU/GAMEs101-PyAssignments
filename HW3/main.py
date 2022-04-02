@@ -101,6 +101,12 @@ def get_Pmatrix(eye_fov_angle, # 👀 的视角范围
 
     return np.dot(np.dot(ortho_Smatrix, ortho_Tmatrix), perspec2ortho_matrix)
 
+## 这是别人的 P-matrix
+# def get_Pmatrix(fov,aspect,near,far):
+#     #构建进行透视投影的矩阵
+#     t2a=np.tan(fov/2.0)
+#     return np.array([[1./(aspect*t2a),0.,0.,0.],[0,1./t2a,0.,0.],[0.,0.,(near+far)/(near-far),2*near*far/(near-far)],[0.,0.,-1.,0.]])
+
 def on_key_press(event):
     key = event.key
     ## 翻转
@@ -126,6 +132,7 @@ def on_key_press(event):
         plt.close()
     elif key == "enter":
         args.quit = True
+    print(args.angle_x, args.angle_y, arg.angle_z)
 
 def xyz2xyzw(vertex):
     x, y, z = vertex
@@ -135,10 +142,10 @@ def xyz2xyzw(vertex):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="HW1 CMD.")
     parser.add_argument("--angle_x", type=float, default=0.0)
-    parser.add_argument("--angle_y", type=float, default=0.0)
+    parser.add_argument("--angle_y", type=float, default=140.0)
     parser.add_argument("--angle_z", type=float, default=0.0)
     parser.add_argument("--screenshot", type=str, default="screenshot.png")
-    parser.add_argument("--obj_path", type=str, default="./models/spot/spot_triangulated_good.obj")
+    parser.add_argument("--obj_path", type=str, default="./models/spot/spot/spot_triangulated_good.obj")
 
     args = parser.parse_args()
     args.quit = False
@@ -156,29 +163,46 @@ if __name__ == "__main__":
                 triangle.set_vertex(_id, np.array([vertex.position[0], vertex.position[1], vertex.position[2], 1.], dtype=np.float32))
                 triangle.set_normal(_id, np.array([vertex.normal[0], vertex.normal[1], vertex.normal[2]], dtype=np.float32))
                 triangle.set_texture_coordinate(_id, np.array([vertex.texture_coordinate[0], vertex.texture_coordinate[1]], dtype=np.float32))
+            # print(">>>>>>>>>>>>>>>>>>>>>>>")
+            # print(triangle.vertices)
+            # print(triangle.colors)
+            # print(triangle.normals)
+            # print(triangle.textures)
             triangles.append(triangle) 
+        #     break
+        # break
     
     ## Initialize rasterizer
     rasterizer = Rasterizer.Rasterizer(512+256, 512+256) # 渲染器/屏幕
-    tex_path = args.obj_path.replace(os.path.basename(args.obj_path), "hmap.jpg")
+    # rasterizer = Rasterizer.Rasterizer(700, 700) # 渲染器/屏幕
+    # tex_path = args.obj_path.replace(os.path.basename(args.obj_path), "hmap.jpg")
+    tex_path = "./models/spot/hmap.jpg"
+    rasterizer.set_texture_path(tex_path)
+    rasterizer.obj_path = args.obj_path
 
-    _camera_pos = np.array([0, 0, 10])                  # the camera position
+    _camera_pos = np.array([0, 0, 10], dtype=np.float32)                  # the camera position
     _PI = math.pi
-    rasterizer.clear(Rasterizer.COLOR|Rasterizer.DEPTH) # 重置帧缓存和深度缓存
-    rasterizer.set_Mmatrix(get_Mmatrix(args.angle_x, args.angle_y, args.angle_z))
-    rasterizer.set_Vmatrix(get_Vmatrix(_camera_pos))
-    rasterizer.set_Pmatrix(get_Pmatrix(45, 1, 0.1, 50))
+
+    #### 画图
+    while True:
+        rasterizer.clear(Rasterizer.COLOR|Rasterizer.DEPTH) # 重置帧缓存和深度缓存
+        rasterizer.set_Mmatrix(get_Mmatrix(args.angle_x, args.angle_y, args.angle_z))
+        rasterizer.set_Vmatrix(get_Vmatrix(_camera_pos))
+        rasterizer.set_Pmatrix(get_Pmatrix(45, 1, 0.1, 50))
     
-    for i in range(0, 12, 2):
-        rasterizer.render(triangles)#[i:i+2])
-        screenshot = rasterizer.get_screenshot()
+        if True:#for i in range(0, 12, 2):
+            rasterizer.render(triangles)
+            screenshot = rasterizer.get_screenshot()
 
-        fig, ax = plt.subplots()
-        fig.canvas.mpl_connect("key_press_event", on_key_press)
-        plt.imshow(screenshot)
-        plt.show()
-        break
-
+            fig, ax = plt.subplots()
+            fig.canvas.mpl_connect("key_press_event", on_key_press)
+            plt.imshow(screenshot)
+            plt.show()
+            # break
+        if args.quit:
+            break
+        # break
+    plt.close()
 
 
 
