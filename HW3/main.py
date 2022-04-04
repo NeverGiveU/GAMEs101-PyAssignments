@@ -132,7 +132,7 @@ def on_key_press(event):
         plt.close()
     elif key == "enter":
         args.quit = True
-    print(args.angle_x, args.angle_y, arg.angle_z)
+    # print(args.angle_x, args.angle_y, args.angle_z)
 
 def xyz2xyzw(vertex):
     x, y, z = vertex

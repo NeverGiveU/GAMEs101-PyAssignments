@@ -45,7 +45,7 @@ class Rasterizer(object):
         self.Pmatrix = None
 
         self.texture = None  # type=Texture
-        self.shader_type = "displacement"#"bump"#"phong"#"texture"#"normal"#
+        self.shader_type = "displacement"#"normal"#"bump"#"phong"#"texture"#
         self.obj_path = ""
 
     def get_next_id(self):

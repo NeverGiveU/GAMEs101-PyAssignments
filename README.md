@@ -10,7 +10,7 @@
 
 #### 3. Assignment 3
 
-:one: 检查 `ObjLoader`，但后来发现 `python` 有直接的库可以用😄，不需要去写那么繁杂的 `.obj` 文件解析器，即
+:one: 实现 `ObjLoader`，但后来发现 `python` 有直接的库可以用😄，不需要去写那么繁杂的 `.obj` 文件解析器，即
 
 ```python
 ## TOINSTALL
