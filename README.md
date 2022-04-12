@@ -8,7 +8,7 @@
 
 ![screenshot-assignment-2](./assets/003.png)
 
-#### 3. Assignment 3
+#### 3. Assignment 3——Shading
 
 :one: 实现 `ObjLoader`，但后来发现 `python` 有直接的库可以用😄，不需要去写那么繁杂的 `.obj` 文件解析器，即
 
@@ -47,4 +47,8 @@ for i in range(0, len(obj), 3):    # 遍历每个△
 | ![004-4](./assets/004-4.png)      | ![004-5](./assets/004-5.png)                |
 | **Displacement**                  | **好一点的视图凑个数**                      |
 | ![004-6](./assets/004-6.png)      | ![004-2-2](./assets/004-2-2.png)            |
+
+#### 4. Assignment 4——绘制贝塞尔曲线
+
+![005](./assets/005.png)
 
