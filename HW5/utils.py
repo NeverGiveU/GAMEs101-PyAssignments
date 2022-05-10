@@ -101,8 +101,9 @@ def refract(dir_in, normal, ior):
         normal_tmp = normal
     else:
         eta_i, eta_t = eta_t, eta_i
-        normal_tmp = -normal
+        normal_tmp = -normal # 由内向外射出，需要将法向量反向
     eta = eta_i/eta_t
+
     k = 1 - eta*eta*(1-cos_i*cos_i)
     # print(cos_i, eta, k)
     if k < 0:
@@ -111,16 +112,18 @@ def refract(dir_in, normal, ior):
         return eta*dir_in + (eta*cos_i-k**.5)*normal_tmp
 
 def fresnel(dir_in, normal, ior):
+    ## 解菲涅尔方程
     '''
     @param:
         `dir_in` --np.array --shape=(3,) --help="入射光线方向"
     '''
     cos_i = a_dot_b(dir_in, normal)
-    eta_i = 1.
-    eta_t = ior 
+    eta_i = 1. # 在真空中的折射率
+    eta_t = ior# object 材料的折射率
     if cos_i > 0:
         eta_i, eta_t = eta_t, eta_i
-    sin_t = eta_i / eta_t * (max(0., 1-cos_i**2))**.5
+
+    sin_t = eta_i / eta_t * (max(0., 1-cos_i**2))**.5 ## 根据反射定律计算折射角的正弦值
     if sin_t >= 1:
         return 1.
     cos_t = max(0., 1-sin_t**2)**.5

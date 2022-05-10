@@ -160,17 +160,18 @@ def ray_triangle_intersect(v0, v1, v2, orig, dir):
 
     ## 计算重心坐标, 顺带可以帮助判断交点是否在 △ 内
     # 以下代码借鉴于: https://github.com/feichang2/games101hw
+    # ⚠️⚠️使用 tutorial 13, P29 中的 Moller Trumbore Algorithm 算法
     s = orig-v0
     s1 = np.cross(dir,e2)
     s2 = np.cross(s,e1)
     s1e1 = np.dot(s1,e1)
     if s1e1 == 0.:
         s1e1 += 1e-8
-    t=np.dot(s2,e2)/s1e1
+    t = np.dot(s2,e2)/s1e1
     u = np.dot(s1,s)/s1e1
     v = np.dot(s2,dir)/s1e1
 
-    if t > 0 and 0 <= u <= 1 and 0 <= v <= 1 and 0 <= u+v <= 1:
+    if t > 0 and 0 <= u <= 1 and 0 <= v <= 1 and 0 <= u+v <= 1: # 判断解的有效性
         return True, t, np.array([u, v])
     return False, None, None 
 

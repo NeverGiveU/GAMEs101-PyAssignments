@@ -55,21 +55,25 @@ class Renderer(object):
         hit_color = scene.background_color # shape=(3,)
         payload = self.trace(original, direction, scene.objects)
         if payload is None:
+            # 如果没有与任何的 obj 碰撞，返回背景颜色
             return hit_color
         # print("|||", payload.t_near, payload.uv)
         ## hit point
         hit_point = original + payload.t_near*direction
         normal, st = payload.hit_object.get_surface_properties(hit_point, direction, payload.index, payload.uv)
-        ## shading
+
+        ## shading: 当我们知道光线与 hit 的对象后, 就可以计算这一次弹射的 shading (of `primary ray`)
         material_type = payload.hit_object.material_type   
         f_inshadow = False   
+
+        # 考虑不同的材质
         if material_type == "DIFFUSE_AND_GLOSSY":
             '''
             We use the Phong illumation model int the default case. 
             The phong model is composed of a diffuse and a specular reflection component.
             '''
-            light_amt = 0.
-            specular_color = 0.
+            light_amt = 0.      # 环境光
+            specular_color = 0. # 镜面反射
             shadow_point_orig = (hit_point+scene.epsilon*normal) if a_dot_b(direction, normal) < 0 else hit_point-scene.epsilon*normal
             for light in scene.lights:
                 direction_p2l = light.position - hit_point
@@ -85,8 +89,8 @@ class Renderer(object):
                 # 若是, 则环境光为 0.
                 # print(shadow_point_orig, direction_p2l)
                 payload_shadow = self.trace(shadow_point_orig, direction_p2l, scene.objects)
-                bool_inshadow = payload_shadow is not None and payload.t_near**2 < distance_p2l
-                light_amt += 0. if bool_inshadow else light.intensity*ldotn
+                bool_inshadow = payload_shadow is not None and payload_shadow.t_near**2 < distance_p2l
+                light_amt += 0. if bool_inshadow else light.intensity*ldotn # 环境光直接来自于光源，与所成夹角的余弦值成正比
                 # 镜面反射——这里计算高光的时候, 并没有考虑是否遮挡的问题
                 direction_reflection = reflect(-direction_p2l, normal)
                 specular_color += max(0., a_dot_b(direction_reflection, -direction))**payload.hit_object.specular_exponent * light.intensity
@@ -108,12 +112,13 @@ class Renderer(object):
             hit_color = color_reflection*Kr+color_refraction*(1-Kr)
 
         else: # "REFLECTION"
-            Kr = fresnel(direction, normal, payload.hit_object.ior) 
+            ## 这里使用了对称的原理
+            Kr = fresnel(direction, normal, payload.hit_object.ior) # 反射率: 即有多少光可以被反射回来
             # 反射反向与
             direction_reflection = reflect(direction, normal)
             reflection_ray_orig = hit_point+normal*scene.epsilon if a_dot_b(direction_reflection, normal) < 0 else hit_point-normal*scene.epsilon
             
-            hit_color = self.cast_ray(reflection_ray_orig, direction_reflection, scene, depth+1)
+            hit_color = self.cast_ray(reflection_ray_orig, direction_reflection, scene, depth+1) # 以当前点的某个抖动为新的视点, 计算第二次弹射: `Secondary Ray`
             hit_color = hit_color * Kr
 
         return hit_color 
