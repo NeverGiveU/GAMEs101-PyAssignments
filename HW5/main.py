@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from Scene import Scene
 from Object import Sphere, MeshTriangle, Light
 from Renderer import Renderer
+import time 
 
 
 if __name__ == "__main__":
@@ -45,7 +46,10 @@ if __name__ == "__main__":
     scene.add_light(light2)
 
     renderer = Renderer()
+    stime = time.time()
     renderer.render(scene)
+    etime = time.time()
+    print("Time Cost: {:.4f}".format(etime-stime))
 
     plt.imshow(renderer.frame_buffer)
     plt.show()

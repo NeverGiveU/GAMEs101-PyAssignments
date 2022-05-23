@@ -66,3 +66,14 @@ for i in range(0, len(obj), 3):    # 遍历每个△
 
 ![006](./assets/006.png)
 
+下边是脚本 `Render.py` 中相关算法的示意图，详见 `./assets/000.pptx`
+
+![1653013679598](./assets/007.png)
+
+![1653013749274](./assets/008.png)
+
+记录其耗时为：`364.4381 sec`.
+
+#### 6. Assignment 6——Acceleration Structure: BVH
+
+The output image is being rendered, pls wait ...
