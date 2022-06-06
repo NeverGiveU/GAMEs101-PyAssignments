@@ -77,3 +77,6 @@ for i in range(0, len(obj), 3):    # 遍历每个△
 #### 6. Assignment 6——Acceleration Structure: BVH
 
 The output image is being rendered, pls wait ...
+
+![009](./assets/009.png)
+

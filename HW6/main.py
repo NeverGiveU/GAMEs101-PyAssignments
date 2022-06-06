@@ -5,12 +5,13 @@ from Scene import Scene
 from Light import Light
 from Renderer import Renderer
 import time 
+from PIL import Image  
 
 
 if __name__ == "__main__":
     scene = Scene(1280, 960)
     # scene = Scene(320, 240)
-    # scene = Scene(80, 60)
+    # scene = Scene(20, 15)
 
     ## Object
     bunny = MeshTriangle("./bunny.obj")
@@ -32,5 +33,7 @@ if __name__ == "__main__":
     print(etime-stime)
     
     ## 
-    plt.imshow(renderer.frame_buffer)
-    plt.show()
+    # plt.imshow(renderer.frame_buffer)
+    # plt.show()
+    # print(renderer.frame_buffer)
+    img = Image.fromarray((renderer.frame_buffer*255).astype(np.uint8)).convert("RGB").save("res.png")
