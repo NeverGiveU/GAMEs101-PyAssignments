@@ -82,5 +82,5 @@ The output image is being rendered, pls wait ...
 
 ## Assignment 8——质点-弹簧系统
 
-<img src="./assets/010.gif" style="width:384px"/>
+<img src="./assets/010.gif" style="width:384px; align:center;"/>
 
