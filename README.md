@@ -80,3 +80,7 @@ The output image is being rendered, pls wait ...
 
 ![009](./assets/009.png)
 
+## Assignment 8——质点-弹簧系统
+
+<img src="./assets/010.gif" style="width:384px"/>
+
